@@ -1,0 +1,16 @@
+{
+  "name": "distribution-pattern",
+  "version": "1.0.0",
+  "description": "honeybee - show distribution pattern of states using openFDA API",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.19.0",
+    "chart.js": "^2.8.0",
+    "express": "^4.17.1"
+  }
+}

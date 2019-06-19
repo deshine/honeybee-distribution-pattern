@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Honeybee - Distribution Pattern</title>
+
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+  <style>
+    .stateCheckboxes { 
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      float: left;
+    }
+    .stateCheckboxes li {
+      margin: 0;
+      width: 60px;
+      float: left;
+    }
+  canvas{
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+  }
+  </style>
+
+</head>
+<body>
+
+  <div id="app" class="container">
+    <div class="row">
+      <div class="w-75">
+        <h1 class="text-center">{{ name }}</h1>
+        <canvas id="canvas" ></canvas>
+      </div>
+      <div class="w-25">
+        <div class="text-center"><label><input type="checkbox" value="nationwide" checked> Nationwide</label></div>
+        <ul class="stateCheckboxes">
+          <li v-for="state in states"><label><input type="checkbox" :value="state"> {{ state }}</label></li>
+        </ul>      
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Use CDNs so that html page can be run anywhere -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.10/dist/vue.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js"></script>
+  <!-- <script src="/chartsjs/Chart.bundle.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script>
+  <!-- <script src="/axiosjs/axios.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+  <script>
+    const app = new Vue({
+      el: '#app',
+      data: {
+        name: 'State Distribution Pattern',
+        states: ["AK", "AL", "AR", "AS", "AZ", "CA", "CO", "CT", "DC", "DE", "FL", "GA", "GU", "HI", "IA", "ID", "IL", "IN", "KS", "KY", "LA", "MA", "MD", "ME", "MI", "MN", "MO", "MS", "MT", "NC", "ND", "NE", "NH", "NJ", "NM", "NV", "NY", "OH", "OK", "OR", "PA", "PR", "RI", "SC", "SD", "TN", "TX", "UT", "VA", "VI", "VT", "WA", "WI", "WV", "WY"]
+      }
+
+    });
+
+    getReportDates();
+
+    function getReportDates() {
+      // creating an array of report dates for the past 12 months to be used in the search query for open FDA API
+      // create an array for y axis labels to be used for chart
+
+      var today = new Date();
+      var tempDate = today;
+      var isCurrentMonth = true;
+      var dateOptions = { year: 'numeric', month: 'short' };
+
+
+      var dd = String(today.getDate()).padStart(2, '0');
+      var mm = String(today.getMonth() + 1).padStart(2, '0');
+      var yyyy = today.getFullYear();
+
+
+      window.yAxisLabels = [];
+      window.reportDates = []; // array of report dates to query in open FDA API
+
+      for ( var i=0; i<12; i++) {
+
+        if ( i !== 0 ) { isCurrentMonth = false; }
+
+        window.yAxisLabels.unshift(tempDate.toLocaleDateString("en-US", dateOptions));
+        window.reportDates.unshift(reportDateString(tempDate, isCurrentMonth));
+
+        tempDate.setMonth(tempDate.getMonth() - 1);
+      }      
+    }
+
+    function getDaysInMonth(month, year) {
+      //Day 0 is the last day in the previous month
+      return new Date(year, month, 0).getDate();
+    }
+
+    function getRandomColor() {
+      var color = '#'+Math.floor(Math.random()*16777215).toString(16); // generates random hex color
+      return color;
+    }
+
+    function reportDateString(date, isCurrentMonth) {
+      // create reportDateString to be used in search string for open FDA API
+      var dd = "01";
+      var mm = String(date.getMonth() + 1).padStart(2, '0');
+      var yyyy = date.getFullYear();
+
+      var dateString = yyyy + mm + dd + "+TO+";
+
+      if(isCurrentMonth) {
+        dd = String(date.getDate()).padStart(2, '0');
+        dateString += yyyy + mm + dd;
+      } else {
+        dd = String(getDaysInMonth(mm, yyyy));
+        dateString += yyyy + mm + dd;
+      }
+
+      return dateString;
+    }
+
+    async function getDistributionData(state,reportDates) {
+      var data = [0,1,2,3,4,5,6,7,8,9,10,11];
+      var searchQuery;
+
+      const promises = reportDates.map(async (reportDate, idx) => {
+        searchQuery = "search=";
+
+        searchQuery = searchQuery + "distribution_pattern:" + state + "+AND+" + "report_date:[" + reportDate + "]";
+
+        await axios.get('https://api.fda.gov/drug/enforcement.json?' + searchQuery)
+          .then(function (response) {
+            data[idx] = response.data.meta.results.total;
+          })
+          .catch(function (error) {
+            data[idx] = 0;
+            console.log(error);
+          });
+      });
+
+      await Promise.all(promises);
+
+      return new Promise((resolve,reject) => {
+        if(data) {
+          resolve(data);
+        } else {
+          reject();
+        }
+      });
+
+    }
+
+    window.chartConfig = {
+      type: 'line',
+      data: {
+        labels: window.yAxisLabels,
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        title: {
+          display: true,
+          text: 'Drug Recall Distribution Pattern'
+        },
+        legend: {
+          display: false
+        },
+        tooltips: {
+          mode: 'index',
+          intersect: false,
+        },
+        hover: {
+          mode: 'nearest',
+          intersect: true
+        },
+        scales: {
+          xAxes: [{
+            display: true,
+            scaleLabel: {
+              display: false
+            }
+          }],
+          yAxes: [{
+            display: true,
+            scaleLabel: {
+              display: true,
+              labelString: '# of Reports'
+            }
+          }]
+        }
+      }
+    };
+
+    window.onload = function() {
+      getDistributionData("nationwide", window.reportDates)
+        .then(
+          function(response) {
+            var newDataset = {
+              label: 'nationwide',
+              backgroundColor: 'rgb(255, 99, 132)',
+              borderColor: 'rgb(255, 99, 132)',
+              data: response,
+              fill: false
+            };
+
+            window.chartConfig.data.datasets.push(newDataset);
+            var ctx = document.getElementById('canvas');
+            window.chart = new Chart(ctx, window.chartConfig);
+          }
+        );
+    };
+
+    $(function() {
+
+        $('input[type="checkbox"]').bind('change', function (v) {
+            var datasets = window.chartConfig.data.datasets
+            const state = $(this).val();
+            const index = datasets.findIndex(data => data.label === state);
+
+            if($(this).is(':checked')) {
+              if(index !== -1) {
+                window.chartConfig.data.datasets[index].hidden = false;
+              } else {
+                // add new dataset if it hasn't been rendered
+                getDistributionData(state, window.reportDates)
+                  .then(
+                    function(response) {
+                      var color = getRandomColor();
+                      var newDataset = {
+                        label: state,
+                        backgroundColor: color,
+                        borderColor: color,
+                        data: response,
+                        fill: false
+                      };
+                      window.chartConfig.data.datasets.push(newDataset);
+                      window.chart.update();
+                    }
+                  );
+              }
+            } else {
+              window.chartConfig.data.datasets[index].hidden = true;
+            }
+            window.chart.update();
+        });
+
+    });
+</script>
+
+</body>
+</html>
