@@ -4,6 +4,10 @@ This single page app uses the open FDA API to show the distribution_pattern of s
 
 ## Getting Started
 
+You can view the app here: https://deshine.github.io/honeybee-distribution-pattern/
+
+or
+
 Clone to your computer. Run 'npm install' from project root to download dependencies. From project root, run 'node app.js' to start the node server. View the application at http://localhost:3000/
 
 ### Prerequisites
